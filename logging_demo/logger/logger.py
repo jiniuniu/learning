@@ -24,13 +24,13 @@ def setup_logger(logger_name=APP_LOGGER_NAME, **kwargs):
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
-    if "kafka" in kwargs:
-        params = kwargs["kafka"]
-        hosts = params["hosts"]
-        topic = params["topic"]
-        kh = KafkaHandler(hostlist=hosts, topic=topic)
-        kh.setFormatter(formatter)
-        logger.addHandler(kh)
+    # if "kafka" in kwargs:
+    #     params = kwargs["kafka"]
+    #     hosts = params["hosts"]
+    #     topic = params["topic"]
+    #     kh = KafkaHandler(hostlist=hosts, topic=topic)
+    #     kh.setFormatter(formatter)
+    #     logger.addHandler(kh)
 
     return logger
 
