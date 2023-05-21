@@ -70,3 +70,7 @@ def wiki_scrape(topic_name, verbose=True):
     print("Wikipedia pages scraped:", len(sources))
 
     return sources
+
+
+if __name__ == "__main__":
+    wiki_scrape("姚明在nba职业生涯")
