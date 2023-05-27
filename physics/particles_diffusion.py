@@ -4,16 +4,30 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 
-class SimulationEnvironment:
-    def __init__(self, pos, vel, r):
-        """
-        初始化小球的位置和速度。
-        """
+class Simulator:
+    # 洞的半径相较于墙的尺度的比例
+    hole_ratio: float = 0.1
+    # 小球数
+    num_particles: int = 300
+    # 空间尺度
+    rscale: float = 8.0e6
+    # 时间尺度
+    tscale: float = 1e9
+    # 30帧每秒
+    frame_per_sec: float = 30
 
-        self.pos = np.asarray(pos, dtype=float)
-        self.vel = np.asarray(vel, dtype=float)
-        self.n = self.pos.shape[0]
-        self.r = r
+    def init_environment(self):
+        # 初始化，位置在空间均匀，速度在方向均匀分布
+        self.pos = np.random.random((self.num_particles, 2)) * (1, 1)
+        # 平均速度 ~150 m.s-1.
+        sbar = 150 * self.rscale / self.tscale
+        theta = np.random.random(self.num_particles) * 2 * np.pi
+        s0 = sbar * np.random.random(self.num_particles)
+        self.vel = (s0 * np.array((np.cos(theta), np.sin(theta)))).T
+        # van der Waals radius of Ar, ~0.2 nm.
+        self.r = 20e-10 * self.rscale
+        # dt
+        self.dt = 1 / self.frame_per_sec
 
     def step(self, dt):
         """Advance the simulation by dt seconds."""
@@ -39,6 +53,9 @@ class SimulationEnvironment:
             self.vel[i] += Jn
             self.vel[j] -= Jn
 
+            # self.vel[i] = vel_j
+            # self.vel[j] = vel_i
+
         # 对于撞到边界，该方向的速度分量取反
         hit_left_wall = self.pos[:, 0] < self.r
         hit_right_wall = self.pos[:, 0] > 3 - self.r
@@ -48,7 +65,8 @@ class SimulationEnvironment:
         self.vel[hit_bottom_wall | hit_top_wall, 1] *= -1
 
         hit_middle_wall = (
-            (self.pos[:, 1] < (0.5 - hole_r)) | (self.pos[:, 1] > (0.5 + hole_r))
+            (self.pos[:, 1] < (0.5 - self.hole_ratio))
+            | (self.pos[:, 1] > (0.5 + self.hole_ratio))
         ) & (
             ((self.pos[:, 0] > (1 - self.r)) & (self.pos[:, 0] < (1 + self.r)))
             | ((self.pos[:, 0] > (2 - self.r)) & (self.pos[:, 0] < (2 + self.r)))
@@ -57,31 +75,11 @@ class SimulationEnvironment:
 
 
 if __name__ == "__main__":
-    # 小球数
-    n = 300
-    # 空间尺度
-    rscale = 8.0e6
-    # van der Waals radius of Ar, ~0.2 nm.
-    r = 20e-10 * rscale
-    # 时间尺度
-    tscale = 1e9
-    # 平均速度 ~150 m.s-1.
-    sbar = 150 * rscale / tscale
-    # 像素 ~30帧每秒
-    FPS = 30
-    dt = 1 / FPS
-
-    # 小孔的半径占墙面的比例
-    hole_r = 0.1
-
-    # 初始化，位置在空间均匀，速度在方向均匀分布
-    pos = np.random.random((n, 2)) * (1, 1)
-    theta = np.random.random(n) * 2 * np.pi
-    s0 = sbar * np.random.random(n)
-    vel = (s0 * np.array((np.cos(theta), np.sin(theta)))).T
-
-    # 初始化模拟环境
-    sim = SimulationEnvironment(pos, vel, r)
+    sim = Simulator()
+    sim.init_environment()
+    n = sim.num_particles
+    hole_r = sim.hole_ratio
+    dt = sim.dt
 
     # Figure 相关的参数
     DPI = 100
@@ -155,5 +153,5 @@ if __name__ == "__main__":
 
     nframes = 3000
     anim = FuncAnimation(fig, animate, frames=nframes, interval=10, repeat=False)
-    # anim.save('diffusion.mp4')
+    # anim.save("diffusion_point_mass_approximation.mp4")
     plt.show()

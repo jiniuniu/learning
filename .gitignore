@@ -112,3 +112,6 @@ build/
 
 # .log
 *.log
+
+# .mp4
+*.mp4
