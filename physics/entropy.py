@@ -2,6 +2,7 @@ import numpy as np
 from scipy.spatial.distance import pdist, squareform
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from typing import List
 
 
 class Simulator:
@@ -17,7 +18,7 @@ class Simulator:
     frame_per_sec: float = 30
 
     # grid 的尺度，~2 表示一条边用两个grid来表示
-    grid_size: int = 4
+    grids: List[int] = [2, 12, 20]
 
     def init_environment(self):
         # 初始化，位置在空间均匀，速度在方向均匀分布
@@ -31,7 +32,6 @@ class Simulator:
         self.r = 20e-10 * self.rscale
         # ~每次系统evolve的时间步长
         self.dt = 1 / self.frame_per_sec
-        self.pis = np.zeros(self.grid_size**2 * 2)
 
     def step(self):
         """Advance the simulation by dt seconds."""
@@ -78,19 +78,19 @@ class Simulator:
         )
         self.vel[hit_middle_wall, 0] *= -1
 
-    def get_entropy(self):
+    def get_entropy(self, grid: int):
         """
         "Classical dynamical coarse-grained entropy and comparison with
         the quantum version." Physical Review E 102.3 (2020): 032106.
         """
-
-        for bix in range(self.grid_size * 2):
-            for biy in range(self.grid_size):
-                ci = bix * self.grid_size + biy
-                x1 = bix / self.grid_size
-                x2 = (bix + 1) / self.grid_size
-                y1 = biy / self.grid_size
-                y2 = (biy + 1) / self.grid_size
+        pis = np.zeros(grid**2 * 2)
+        for bix in range(grid * 2):
+            for biy in range(grid):
+                ci = bix * grid + biy
+                x1 = bix / grid
+                x2 = (bix + 1) / grid
+                y1 = biy / grid
+                y2 = (biy + 1) / grid
                 nwherex = np.where(
                     np.logical_and(self.pos[:, 0] > x1, self.pos[:, 0] < x2)
                 )[0]
@@ -98,9 +98,9 @@ class Simulator:
                     np.logical_and(self.pos[:, 1] > y1, self.pos[:, 1] < y2)
                 )[0]
                 nbi = len(np.intersect1d(nwherex, nwherey))
-                self.pis[ci] = nbi / self.num_particles
+                pis[ci] = nbi / self.num_particles
 
-        pis_ = self.pis[self.pis > 0]
+        pis_ = pis[pis > 0]
         return -np.sum(pis_ * np.log(pis_))
 
 
@@ -113,32 +113,25 @@ if __name__ == "__main__":
 
     # Figure 相关的参数
     DPI = 100
-    width, height = 600, 900
+    width, height = 600, 600
     fig = plt.figure(figsize=(width / DPI, height / DPI), dpi=DPI)
     fig.subplots_adjust(left=0.1, right=0.97)
-    sim_ax = fig.add_subplot(311, xlim=[0, 2], ylim=[0, 1], autoscale_on=False)
+    sim_ax = fig.add_subplot(211, xlim=[0, 2], ylim=[0, 1], autoscale_on=False)
     sim_ax.set_xticks([])
     sim_ax.set_yticks([])
     # Make the box walls a bit more substantial.
     for spine in sim_ax.spines.values():
         spine.set_linewidth(2)
 
-    npart_ax = fig.add_subplot(312)
-    npart_ax.set_xlabel("Time, $t\;/\mathrm{ns}$")
-    npart_ax.set_ylabel("Number of particles")
-    npart_ax.set_xlim(0, 100)
-    npart_ax.set_ylim(0, n)
-    npart_ax.axhline(n / 2, 0, 1, color="k", lw=1, ls="--")
-
-    entropy_ax = fig.add_subplot(313)
+    entropy_ax = fig.add_subplot(212)
     entropy_ax.set_xlabel("Time, $t\;/\mathrm{ns}$")
     entropy_ax.set_ylabel("entropy")
     # 热平衡均匀分布下，熵最大。
-    s_max = np.log(sim.grid_size**2 * 2)
-    s_min = np.log(sim.grid_size**2)
+    s_max = np.log(sim.grids[0] ** 2 * 2)
+    s_min = np.log(sim.grids[0] ** 2)
     entropy_ax.set_xlim(0, 100)
-    entropy_ax.set_ylim(s_min * 0.8, 1.2 * s_max)
-    entropy_ax.axhline(s_max, 0, 1, color="k", lw=1, ls="--")
+    entropy_ax.set_ylim(-0.1, (s_max - s_min) * 1.2)
+    entropy_ax.axhline(s_max - s_min, 0, 1, color="k", lw=1, ls="--")
 
     (particles,) = sim_ax.plot([], [], "o", color="k")
     sim_ax.vlines(1, 0, 0.5 - hole_r, lw=2, color="k")
@@ -146,20 +139,16 @@ if __name__ == "__main__":
     sim_ax.axvspan(0, 1, 0.0, 1, facecolor="tab:blue", alpha=0.3)
     sim_ax.axvspan(1, 2, 0.0, 1, facecolor="tab:red", alpha=0.3)
 
-    blue_label_pos = 0.25, 1.05
-    blue_label = sim_ax.text(*blue_label_pos, "Blue: {:d}".format(n), ha="center")
-    red_label_pos = 1.25, 1.05
-    red_label = sim_ax.text(*red_label_pos, "Red: 0", ha="center")
+    (red_line,) = entropy_ax.plot([0], [0], c="r", label="4 x 2 grids")
+    (blue_line,) = entropy_ax.plot([0], [0], c="b", label="24 x 12 grids")
+    (green_line,) = entropy_ax.plot([0], [0], c="g", label="40 x 20 grids")
+    entropy_ax.legend()
 
-    (red_line,) = npart_ax.plot([0], [0], c="r", label="number of particles in red box")
-    (blue_line,) = npart_ax.plot(
-        [0], [n], c="b", label="number of particles in blue box"
-    )
-    (entropy_line,) = entropy_ax.plot(
-        [0], [0], c="g", label="coarse-grain entropy of the particles"
-    )
+    s0 = []
+    for grid in sim.grids:
+        s0.append(np.log(grid**2))
 
-    t, blues, reds, entropies = [], [], [], []
+    t, blues, reds, greens = [], [], [], []
 
     def animate(i):
         global sim
@@ -169,20 +158,16 @@ if __name__ == "__main__":
         particles.set_markersize(2)
 
         t.append(i * dt)
-        blue = sum(sim.pos[:, 0] < 1)
-        red = n - blue
-        blues.append(blue)
-        reds.append(red)
-        entropies.append(sim.get_entropy())
 
-        blue_label.set_text("Blue: {:d}".format(blue))
-        red_label.set_text("Red: {:d}".format(red))
+        reds.append(sim.get_entropy(sim.grids[0]) - s0[0])
+        blues.append(sim.get_entropy(sim.grids[1]) - s0[1])
+        greens.append(sim.get_entropy(sim.grids[2]) - s0[2])
 
         red_line.set_data(t, reds)
         blue_line.set_data(t, blues)
-        entropy_line.set_data(t, entropies)
+        green_line.set_data(t, greens)
 
-        return particles, blue_label, red_label
+        return particles
 
     nframes = 3000
     anim = FuncAnimation(fig, animate, frames=nframes, interval=10, repeat=False)
