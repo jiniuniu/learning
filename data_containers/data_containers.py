@@ -26,7 +26,10 @@ except ValidationError as e:
 #     "loc": [
 #       "age"
 #     ],
-#     "msg": "value is not a valid integer",
-#     "type": "type_error.integer"
+#     "msg": "ensure this value is less than or equal to 150",
+#     "type": "value_error.number.not_le",
+#     "ctx": {
+#       "limit_value": 150
+#     }
 #   }
 # ]
